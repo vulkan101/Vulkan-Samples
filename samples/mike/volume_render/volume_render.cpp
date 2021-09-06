@@ -67,7 +67,7 @@ std::unique_ptr<vkb::VulkanSample> create_volume_render()
 	return std::make_unique<volume_render>();
 }
 
-std::unique_ptr<vkb::RenderPipeline> volume_render::create_backface_renderpass()
+std::unique_ptr<vkb::RenderPipeline> volume_render::create_renderpass()
 {
 	
 	// draw back faces into texture
@@ -104,6 +104,5 @@ std::unique_ptr<vkb::RenderPipeline> volume_render::create_backface_renderpass()
 	render_pipeline->set_clear_value(vkb::gbuffer::get_clear_value());
 
 	return render_pipeline;
-
-	return geometry_render_pipeline;
+	
 }
