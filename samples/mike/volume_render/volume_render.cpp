@@ -24,6 +24,7 @@
 #include "platform/platform.h"
 #include "rendering/subpasses/forward_subpass.h"
 #include "rendering/subpasses/lighting_subpass.h"
+#include "rendering/subpasses/volume_raydir_subpass.h"
 #include "stats/stats.h"
 
 volume_render::volume_render()
@@ -72,15 +73,19 @@ std::unique_ptr<vkb::RenderPipeline> volume_render::create_renderpass()
 	
 	// draw back faces into texture
 	auto back_vs   = vkb::ShaderSource{"volume/geometry.vert"};
-	auto back_fs   = vkb::ShaderSource{"volume/geometry_back.frag"};
-	auto back_subpass = std::make_unique<vkb::GeometrySubpass>(get_render_context(), std::move(back_vs), std::move(back_fs), *scene, *_camera);
+	auto back_fs   = vkb::ShaderSource{"volume/raydir_back.frag"};
+	auto back_subpass = std::make_unique<vkb::RayDirSubpass>(get_render_context(), std::move(back_vs), std::move(back_fs), *scene, *_camera, vkb::FaceDirection::Back);
+	
+	
 	back_subpass->set_output_attachments({1, 2, 3});
 	// draw front faces 
 	auto front_vs      = vkb::ShaderSource{"volume/geometry.vert"};
-	auto front_fs      = vkb::ShaderSource{"volume/geometry_front.frag"};
-	auto front_subpass = std::make_unique<vkb::GeometrySubpass>(get_render_context(), std::move(back_vs), std::move(back_fs), *scene, *_camera);
+	auto front_fs      = vkb::ShaderSource{"volume/raydir_front.frag"};
+	auto front_subpass = std::make_unique<vkb::RayDirSubpass>(get_render_context(), std::move(back_vs), std::move(back_fs), *scene, *_camera, vkb::FaceDirection::Front);
+	front_subpass->set_ray_direction(vkb::RayDirection::Backward);
+	front_subpass->set_input_attachments({1, 2, 3});
 	front_subpass->set_output_attachments({1, 2, 3});
-
+	
 	// Outputs are depth, albedo, and normal
 	
 
@@ -94,8 +99,8 @@ std::unique_ptr<vkb::RenderPipeline> volume_render::create_renderpass()
 
 	// Create subpasses pipeline
 	std::vector<std::unique_ptr<vkb::Subpass>> subpasses{};
-	subpasses.push_back(std::move(scene_subpass));
-	subpasses.push_back(std::move(lighting_subpass));
+	subpasses.push_back(std::move(back_subpass));
+	subpasses.push_back(std::move(front_subpass));
 
 	auto render_pipeline = std::make_unique<vkb::RenderPipeline>(std::move(subpasses));
 

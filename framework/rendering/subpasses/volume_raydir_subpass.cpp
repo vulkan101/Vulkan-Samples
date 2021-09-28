@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "rendering/subpasses/geometry_subpass.h"
+#include "rendering/subpasses/volume_raydir_subpass.h"
 #include "common/utils.h"
 #include "common/vk_common.h"
 #include "rendering/render_context.h"
@@ -30,15 +30,24 @@
 
 namespace vkb
 {
-GeometrySubpass::GeometrySubpass(RenderContext &render_context, ShaderSource &&vertex_source, ShaderSource &&fragment_source, sg::Scene &scene_, sg::Camera &camera) :
+RayDirSubpass::RayDirSubpass(RenderContext &render_context, 
+	ShaderSource &&vertex_source, 
+	ShaderSource &&fragment_source, sg::Scene &scene_, sg::Camera &camera,
+	FaceDirection direction) :
     Subpass{render_context, std::move(vertex_source), std::move(fragment_source)},
     meshes{scene_.get_components<sg::Mesh>()},
     camera{camera},
     scene{scene_}
 {
+	set_face_direction(direction);
 }
 
-void GeometrySubpass::prepare()
+void RayDirSubpass::set_face_direction(FaceDirection direction)
+{
+	_faceDirection = direction;
+}
+
+void RayDirSubpass::prepare()
 {
 	// Build all shader variance upfront
 	auto &device = render_context.get_device();
@@ -53,7 +62,7 @@ void GeometrySubpass::prepare()
 	}
 }
 
-void GeometrySubpass::get_sorted_nodes(std::multimap<float, std::pair<sg::Node *, sg::SubMesh *>> &opaque_nodes, std::multimap<float, std::pair<sg::Node *, sg::SubMesh *>> &transparent_nodes)
+void RayDirSubpass::get_sorted_nodes(std::multimap<float, std::pair<sg::Node *, sg::SubMesh *>> &opaque_nodes, std::multimap<float, std::pair<sg::Node *, sg::SubMesh *>> &transparent_nodes)
 {
 	auto camera_transform = camera.get_node()->get_transform().get_world_matrix();
 
@@ -85,7 +94,7 @@ void GeometrySubpass::get_sorted_nodes(std::multimap<float, std::pair<sg::Node *
 	}
 }
 
-void GeometrySubpass::draw(CommandBuffer &command_buffer)
+void RayDirSubpass::draw(CommandBuffer &command_buffer)
 {
 	std::multimap<float, std::pair<sg::Node *, sg::SubMesh *>> opaque_nodes;
 	std::multimap<float, std::pair<sg::Node *, sg::SubMesh *>> transparent_nodes;
@@ -100,7 +109,12 @@ void GeometrySubpass::draw(CommandBuffer &command_buffer)
 		// Invert the front face if the mesh was flipped
 		const auto &scale      = node_it->second.first->get_transform().get_scale();
 		bool        flipped    = scale.x * scale.y * scale.z < 0;
-		VkFrontFace front_face = flipped ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		// set the face to draw dependent on _faceDirection
+		VkFrontFace front_face; 
+		if (_faceDirection == FaceDirection::Front)
+			front_face = flipped ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		else 
+			front_face = flipped ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
 
 		draw_submesh(command_buffer, *node_it->second.second, front_face);
 	}
@@ -131,7 +145,7 @@ void GeometrySubpass::draw(CommandBuffer &command_buffer)
 	}
 }
 
-void GeometrySubpass::update_uniform(CommandBuffer &command_buffer, sg::Node &node, size_t thread_index)
+void RayDirSubpass::update_uniform(CommandBuffer &command_buffer, sg::Node &node, size_t thread_index)
 {
 	GlobalUniform global_uniform;
 
@@ -152,7 +166,7 @@ void GeometrySubpass::update_uniform(CommandBuffer &command_buffer, sg::Node &no
 	command_buffer.bind_buffer(allocation.get_buffer(), allocation.get_offset(), allocation.get_size(), 0, 1, 0);
 }
 
-void GeometrySubpass::draw_submesh(CommandBuffer &command_buffer, sg::SubMesh &sub_mesh, VkFrontFace front_face)
+void RayDirSubpass::draw_submesh(CommandBuffer &command_buffer, sg::SubMesh &sub_mesh, VkFrontFace front_face)
 {
 	auto &device = command_buffer.get_device();
 
@@ -236,10 +250,10 @@ void GeometrySubpass::draw_submesh(CommandBuffer &command_buffer, sg::SubMesh &s
 	draw_submesh_command(command_buffer, sub_mesh);
 }
 
-void GeometrySubpass::prepare_pipeline_state(CommandBuffer &command_buffer, VkFrontFace front_face, bool double_sided_material)
+void RayDirSubpass::prepare_pipeline_state(CommandBuffer &command_buffer, VkFrontFace front_face, bool double_sided_material)
 {
 	RasterizationState rasterization_state = base_rasterization_state;
-	rasterization_state.front_face = front_face;
+	rasterization_state.front_face         = front_face;
 
 	if (double_sided_material)
 	{
@@ -253,7 +267,7 @@ void GeometrySubpass::prepare_pipeline_state(CommandBuffer &command_buffer, VkFr
 	command_buffer.set_multisample_state(multisample_state);
 }
 
-PipelineLayout &GeometrySubpass::prepare_pipeline_layout(CommandBuffer &command_buffer, const std::vector<ShaderModule *> &shader_modules)
+PipelineLayout &RayDirSubpass::prepare_pipeline_layout(CommandBuffer &command_buffer, const std::vector<ShaderModule *> &shader_modules)
 {
 	// Sets any specified resource modes
 	for (auto &shader_module : shader_modules)
@@ -267,7 +281,7 @@ PipelineLayout &GeometrySubpass::prepare_pipeline_layout(CommandBuffer &command_
 	return command_buffer.get_device().get_resource_cache().request_pipeline_layout(shader_modules);
 }
 
-void GeometrySubpass::prepare_push_constants(CommandBuffer &command_buffer, sg::SubMesh &sub_mesh)
+void RayDirSubpass::prepare_push_constants(CommandBuffer &command_buffer, sg::SubMesh &sub_mesh)
 {
 	auto pbr_material = dynamic_cast<const sg::PBRMaterial *>(sub_mesh.get_material());
 
@@ -284,7 +298,7 @@ void GeometrySubpass::prepare_push_constants(CommandBuffer &command_buffer, sg::
 	}
 }
 
-void GeometrySubpass::draw_submesh_command(CommandBuffer &command_buffer, sg::SubMesh &sub_mesh)
+void RayDirSubpass::draw_submesh_command(CommandBuffer &command_buffer, sg::SubMesh &sub_mesh)
 {
 	// Draw submesh indexed if indices exists
 	if (sub_mesh.vertex_indices != 0)
@@ -302,7 +316,7 @@ void GeometrySubpass::draw_submesh_command(CommandBuffer &command_buffer, sg::Su
 	}
 }
 
-void GeometrySubpass::set_thread_index(uint32_t index)
+void RayDirSubpass::set_thread_index(uint32_t index)
 {
 	thread_index = index;
 }

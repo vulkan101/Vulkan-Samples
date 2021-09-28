@@ -32,7 +32,7 @@ class volume_render : public vkb::VulkanSample
 
   private:
 	vkb::sg::Camera* _camera;
-	std::unique_ptr<vkb::RenderPipeline> create_backface_renderpass();
+	std::unique_ptr<vkb::RenderPipeline> create_renderpass();
 };
 
 std::unique_ptr<vkb::VulkanSample> create_volume_render();

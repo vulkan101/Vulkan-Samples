@@ -59,24 +59,31 @@ struct PBRMaterialUniform
 
 	float roughness_factor;
 };
-
+enum class FaceDirection
+{
+  Front, 
+  Back
+};
 /**
- * @brief This subpass is responsible for rendering a Scene
+ * @brief Render a bounding geometry to calculate ray directions
  */
-class GeometrySubpass : public Subpass
+class RayDirSubpass : public Subpass
 {
   public:
 	/**
-	 * @brief Constructs a subpass for the geometry pass of Deferred rendering
+	 
 	 * @param render_context Render context
 	 * @param vertex_shader Vertex shader source
 	 * @param fragment_shader Fragment shader source
 	 * @param scene Scene to render on this subpass
 	 * @param camera Camera used to look at the scene
 	 */
-	GeometrySubpass(RenderContext &render_context, ShaderSource &&vertex_shader, ShaderSource &&fragment_shader, sg::Scene &scene, sg::Camera &camera);
+	RayDirSubpass(RenderContext &render_context, 
+		ShaderSource &&vertex_shader, ShaderSource &&fragment_shader, 
+		sg::Scene &scene, sg::Camera &camera, 
+		FaceDirection direction);
 
-	virtual ~GeometrySubpass() = default;
+	virtual ~RayDirSubpass() = default;
 
 	virtual void prepare() override;
 
@@ -89,7 +96,7 @@ class GeometrySubpass : public Subpass
 	 * @brief Thread index to use for allocating resources
 	 */
 	void set_thread_index(uint32_t index);
-
+	void set_face_direction(FaceDirection direction);
   protected:
 	virtual void update_uniform(CommandBuffer &command_buffer, sg::Node &node, size_t thread_index = 0);
 
@@ -119,6 +126,8 @@ class GeometrySubpass : public Subpass
 	uint32_t thread_index{0};
 
 	vkb::RasterizationState base_rasterization_state{};
+	// use this to determin whether to draw front or back faces
+	FaceDirection _faceDirection = FaceDirection::Front;
 };
 
 }        // namespace vkb
