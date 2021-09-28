@@ -46,15 +46,8 @@ bool volume_render::prepare(vkb::Platform &platform)
 	_camera       = &camera_node.get_component<vkb::sg::Camera>();
 	camera_node.get_transform().set_translation({0.0f, 0.0f, 10.0f});
 	
-
-		
-	// Example Scene Render Pipeline
-	vkb::ShaderSource vert_shader("base.vert");
-	vkb::ShaderSource frag_shader("basemh.frag");
-	auto              scene_subpass   = std::make_unique<vkb::ForwardSubpass>(get_render_context(), std::move(vert_shader), std::move(frag_shader), *scene, *_camera);
-	auto              render_pipeline = vkb::RenderPipeline();
-	render_pipeline.add_subpass(std::move(scene_subpass));
-	set_render_pipeline(std::move(render_pipeline));
+				
+	render_pipeline = create_renderpass();
 
 	// Add a GUI with the stats you want to monitor
 	stats->request_stats({/*stats you require*/});
@@ -101,12 +94,12 @@ std::unique_ptr<vkb::RenderPipeline> volume_render::create_renderpass()
 	subpasses.push_back(std::move(back_subpass));
 	subpasses.push_back(std::move(front_subpass));
 	
-	auto render_pipeline = std::make_unique<vkb::RenderPipeline>(std::move(subpasses));
+	auto pipeline = std::make_unique<vkb::RenderPipeline>(std::move(subpasses));
 
-	render_pipeline->set_load_store(vkb::gbuffer::get_clear_all_store_swapchain());
+	pipeline->set_load_store(vkb::gbuffer::get_clear_all_store_swapchain());
 
-	render_pipeline->set_clear_value(vkb::gbuffer::get_clear_value());
+	pipeline->set_clear_value(vkb::gbuffer::get_clear_value());
 
-	return render_pipeline;
+	return pipeline;
 	
 }

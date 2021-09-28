@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include "rendering/subpasses/geometry_subpass.h"
 #include "rendering/subpasses/volume_raydir_subpass.h"
 #include "common/utils.h"
 #include "common/vk_common.h"
@@ -37,7 +37,7 @@ RayDirSubpass::RayDirSubpass(RenderContext &render_context,
     Subpass{render_context, std::move(vertex_source), std::move(fragment_source)},
     meshes{scene_.get_components<sg::Mesh>()},
     camera{camera},
-    scene{scene_}
+    scene{scene_} 
 {
 	set_face_direction(direction);
 }

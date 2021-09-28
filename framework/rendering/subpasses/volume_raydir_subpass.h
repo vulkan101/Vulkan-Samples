@@ -36,29 +36,6 @@ class SubMesh;
 class Camera;
 }        // namespace sg
 
-/**
- * @brief Global uniform structure for base shader
- */
-struct alignas(16) GlobalUniform
-{
-	glm::mat4 model;
-
-	glm::mat4 camera_view_proj;
-
-	glm::vec3 camera_position;
-};
-
-/**
- * @brief PBR material uniform for base shader
- */
-struct PBRMaterialUniform
-{
-	glm::vec4 base_color_factor;
-
-	float metallic_factor;
-
-	float roughness_factor;
-};
 enum class FaceDirection
 {
   Front, 
