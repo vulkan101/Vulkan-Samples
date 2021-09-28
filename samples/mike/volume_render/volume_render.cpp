@@ -81,8 +81,7 @@ std::unique_ptr<vkb::RenderPipeline> volume_render::create_renderpass()
 	// draw front faces 
 	auto front_vs      = vkb::ShaderSource{"volume/geometry.vert"};
 	auto front_fs      = vkb::ShaderSource{"volume/raydir_front.frag"};
-	auto front_subpass = std::make_unique<vkb::RayDirSubpass>(get_render_context(), std::move(back_vs), std::move(back_fs), *scene, *_camera, vkb::FaceDirection::Front);
-	front_subpass->set_ray_direction(vkb::RayDirection::Backward);
+	auto front_subpass = std::make_unique<vkb::RayDirSubpass>(get_render_context(), std::move(back_vs), std::move(back_fs), *scene, *_camera, vkb::FaceDirection::Front);	
 	front_subpass->set_input_attachments({1, 2, 3});
 	front_subpass->set_output_attachments({1, 2, 3});
 	
@@ -101,7 +100,7 @@ std::unique_ptr<vkb::RenderPipeline> volume_render::create_renderpass()
 	std::vector<std::unique_ptr<vkb::Subpass>> subpasses{};
 	subpasses.push_back(std::move(back_subpass));
 	subpasses.push_back(std::move(front_subpass));
-
+	// test change
 	auto render_pipeline = std::make_unique<vkb::RenderPipeline>(std::move(subpasses));
 
 	render_pipeline->set_load_store(vkb::gbuffer::get_clear_all_store_swapchain());
