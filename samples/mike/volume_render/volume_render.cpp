@@ -100,7 +100,7 @@ std::unique_ptr<vkb::RenderPipeline> volume_render::create_renderpass()
 	std::vector<std::unique_ptr<vkb::Subpass>> subpasses{};
 	subpasses.push_back(std::move(back_subpass));
 	subpasses.push_back(std::move(front_subpass));
-	// test change
+	
 	auto render_pipeline = std::make_unique<vkb::RenderPipeline>(std::move(subpasses));
 
 	render_pipeline->set_load_store(vkb::gbuffer::get_clear_all_store_swapchain());
