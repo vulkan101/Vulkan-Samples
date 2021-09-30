@@ -61,6 +61,66 @@ std::unique_ptr<vkb::VulkanSample> create_volume_render()
 	return std::make_unique<volume_render>();
 }
 
+void volume_render::prepare_render_context()
+{
+	get_render_context().prepare(1, [this](vkb::core::Image &&swapchain_image) { return create_render_target(std::move(swapchain_image)); });
+}
+
+std::unique_ptr<vkb::RenderTarget> volume_render::create_render_target(vkb::core::Image &&swapchain_image)
+{
+	auto &device = swapchain_image.get_device();
+	auto &extent = swapchain_image.get_extent();
+
+	// G-Buffer should fit 128-bit budget for buffer color storage
+	// in order to enable subpasses merging by the driver
+	// Light (swapchain_image) RGBA8_UNORM   (32-bit)
+	// Albedo                  RGBA8_UNORM   (32-bit)
+	// Normal                  RGB10A2_UNORM (32-bit)
+
+	vkb::core::Image depth_image{device,
+	                             extent,
+	                             vkb::get_suitable_depth_format(swapchain_image.get_device().get_gpu().get_handle()),
+	                             VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | rt_usage_flags,
+	                             VMA_MEMORY_USAGE_GPU_ONLY};
+
+	vkb::core::Image albedo_image{device,
+	                              extent,
+	                              albedo_format,
+	                              VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | rt_usage_flags,
+	                              VMA_MEMORY_USAGE_GPU_ONLY};
+
+	vkb::core::Image position_image{device,
+	                              extent,
+	                              position_format,
+	                              VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | rt_usage_flags,
+	                              VMA_MEMORY_USAGE_GPU_ONLY};
+
+	vkb::core::Image direction_image{device,
+	                                extent,
+	                                direction_format,
+	                                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | rt_usage_flags,
+	                                VMA_MEMORY_USAGE_GPU_ONLY};
+
+	std::vector<vkb::core::Image> images;
+
+	// Attachment 0
+	images.push_back(std::move(swapchain_image));
+
+	// Attachment 1
+	images.push_back(std::move(depth_image));
+
+	// Attachment 2
+	images.push_back(std::move(albedo_image));
+
+	// Attachment 3
+	images.push_back(std::move(position_image));
+
+	// Attachment 4
+	images.push_back(std::move(direction_image));
+
+	return std::make_unique<vkb::RenderTarget>(std::move(images));
+}
+
 std::unique_ptr<vkb::RenderPipeline> volume_render::create_renderpass()
 {
 	
@@ -70,13 +130,13 @@ std::unique_ptr<vkb::RenderPipeline> volume_render::create_renderpass()
 	auto back_subpass = std::make_unique<vkb::RayDirSubpass>(get_render_context(), std::move(back_vs), std::move(back_fs), *scene, *_camera, vkb::FaceDirection::Back);
 	
 	
-	back_subpass->set_output_attachments({1, 2, 3});
+	back_subpass->set_output_attachments({3});
 	// draw front faces 
 	auto front_vs      = vkb::ShaderSource{"volume/geometry.vert"};
 	auto front_fs      = vkb::ShaderSource{"volume/raydir_front.frag"};
 	auto front_subpass = std::make_unique<vkb::RayDirSubpass>(get_render_context(), std::move(back_vs), std::move(back_fs), *scene, *_camera, vkb::FaceDirection::Front);	
-	front_subpass->set_input_attachments({1, 2, 3});
-	front_subpass->set_output_attachments({1, 2, 3});
+	front_subpass->set_input_attachments({3});
+	front_subpass->set_output_attachments({1, 2, 3, 4});
 	
 	// Outputs are depth, albedo, and normal
 	
@@ -87,7 +147,7 @@ std::unique_ptr<vkb::RenderPipeline> volume_render::create_renderpass()
 	auto lighting_subpass = std::make_unique<vkb::LightingSubpass>(get_render_context(), std::move(lighting_vs), std::move(lighting_fs), *_camera, *scene);
 
 	// Inputs are depth, albedo, and normal from the geometry subpass
-	lighting_subpass->set_input_attachments({1, 2, 3});
+	lighting_subpass->set_input_attachments({1, 2, 3, 4});
 
 	// Create subpasses pipeline
 	std::vector<std::unique_ptr<vkb::Subpass>> subpasses{};

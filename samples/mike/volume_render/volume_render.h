@@ -29,10 +29,16 @@ class volume_render : public vkb::VulkanSample
 	virtual bool prepare(vkb::Platform &platform) override;
 	
 	virtual ~volume_render() = default;
-
+	virtual void prepare_render_context() override;
   private:
 	vkb::sg::Camera* _camera;
 	std::unique_ptr<vkb::RenderPipeline> create_renderpass();
+	std::unique_ptr<vkb::RenderTarget>   create_render_target(vkb::core::Image &&swapchain_image);
+	
+	VkFormat          albedo_format{VK_FORMAT_R8G8B8A8_UNORM};
+	VkFormat          position_format{VK_FORMAT_A2B10G10R10_UNORM_PACK32};
+	VkFormat          direction_format{VK_FORMAT_A2B10G10R10_UNORM_PACK32};
+	VkImageUsageFlags rt_usage_flags{VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT};
 };
 
 std::unique_ptr<vkb::VulkanSample> create_volume_render();

@@ -29,6 +29,7 @@ layout (location = 2) in vec3 in_normal;
 layout (location = 0) out vec4 o_front_pos;
 layout (location = 1) out vec4 o_normal;
 
+
 layout(set = 0, binding = 1) uniform GlobalUniform {
     mat4 model;
     mat4 view_proj;
