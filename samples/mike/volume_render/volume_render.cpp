@@ -44,7 +44,7 @@ bool volume_render::prepare(vkb::Platform &platform)
 	// Attach a move script to the camera component in the scene
 	auto &camera_node = vkb::add_free_camera(*scene, "main_camera", get_render_context().get_surface_extent());
 	_camera       = &camera_node.get_component<vkb::sg::Camera>();
-	camera_node.get_transform().set_translation({0.0f, 0.0f, 10.0f});
+	camera_node.get_transform().set_translation({0.0f, 0.0f, 20.0f});
 	
 				
 	render_pipeline = create_renderpass();
@@ -138,7 +138,7 @@ std::unique_ptr<vkb::RenderPipeline> volume_render::create_renderpass()
 	front_subpass->set_input_attachments({3});
 	front_subpass->set_output_attachments({1, 2, 3, 4});
 	
-	// Outputs are depth, albedo, and normal
+	
 	
 
 	// Lighting subpass
@@ -162,4 +162,34 @@ std::unique_ptr<vkb::RenderPipeline> volume_render::create_renderpass()
 
 	return pipeline;
 	
+}
+
+void volume_render::draw_pipeline(vkb::CommandBuffer &command_buffer, vkb::RenderTarget &render_target, vkb::RenderPipeline &render_pipeline, vkb::Gui *gui)
+{
+	auto &extent = render_target.get_extent();
+
+	VkViewport viewport{};
+	viewport.width    = static_cast<float>(extent.width);
+	viewport.height   = static_cast<float>(extent.height);
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+	command_buffer.set_viewport(0, {viewport});
+
+	VkRect2D scissor{};
+	scissor.extent = extent;
+	command_buffer.set_scissor(0, {scissor});
+
+	render_pipeline.draw(command_buffer, render_target);
+
+	/*if (gui)
+	{
+		gui->draw(command_buffer);
+	}*/
+
+	command_buffer.end_render_pass();
+}
+
+void volume_render::draw_renderpass(vkb::CommandBuffer &command_buffer, vkb::RenderTarget &render_target)
+{
+	draw_pipeline(command_buffer, render_target, *render_pipeline, gui.get());
 }

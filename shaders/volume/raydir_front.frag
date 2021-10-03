@@ -27,8 +27,9 @@ layout (location = 1) in vec2 in_uv;
 layout (location = 2) in vec3 in_normal;
 
 layout (location = 0) out vec4 o_front_pos;
-layout (location = 1) out vec4 o_normal;
+layout (location = 1) out vec4 o_direction;
 
+layout(input_attachment_index = 0, binding = 0) uniform subpassInput i_backpos;
 
 layout(set = 0, binding = 1) uniform GlobalUniform {
     mat4 model;
@@ -36,14 +37,10 @@ layout(set = 0, binding = 1) uniform GlobalUniform {
     vec3 camera_position;
 } global_uniform;
 
-layout(push_constant, std430) uniform PBRMaterialUniform {
-    vec4 base_color_factor;
-    float metallic_factor;
-    float roughness_factor;
-} pbr_material_uniform;
 
 void main(void)
 {
+    vec3 back_pos = subpassLoad(i_backpos).xyz;
     vec3 normal = normalize(in_normal);
     // Transform normals from [-1, 1] to [0, 1]
     o_normal = vec4(0.5 * normal + 0.5, 1.0);
@@ -55,6 +52,7 @@ void main(void)
 #else
     base_color = pbr_material_uniform.base_color_factor;
 #endif
-
+// output 
     o_front_pos = in_pos;
+    o_direction = back_pos - in_pos;
 }

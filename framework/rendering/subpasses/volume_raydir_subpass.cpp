@@ -185,6 +185,19 @@ void RayDirSubpass::draw_submesh(CommandBuffer &command_buffer, sg::SubMesh &sub
 
 	command_buffer.bind_pipeline_layout(pipeline_layout);
 
+	// if the front direction (second pass) set up input attachments
+	if (_faceDirection == FaceDirection::Front)
+	{
+		auto &render_target = get_render_context().get_active_frame().get_render_target();
+		auto &target_views  = render_target.get_views();
+
+		// Bind depth, albedo, and normal as input attachments
+		auto &position_view = target_views.at(3);
+		command_buffer.bind_input(position_view, 0, 0, 0);
+		
+	}
+
+
 	if (pipeline_layout.get_push_constant_range_stage(sizeof(PBRMaterialUniform)) != 0)
 	{
 		prepare_push_constants(command_buffer, sub_mesh);
