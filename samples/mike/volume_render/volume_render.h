@@ -40,7 +40,10 @@ class volume_render : public vkb::VulkanSample
 	VkFormat          albedo_format{VK_FORMAT_R8G8B8A8_UNORM};
 	VkFormat          position_format{VK_FORMAT_R32G32B32A32_SFLOAT};
 	VkFormat          direction_format{VK_FORMAT_R32G32B32A32_SFLOAT};
+	VkFormat          volume_data_format{VK_FORMAT_R8_UNORM};
 	VkImageUsageFlags rt_usage_flags{VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT};
+	void              create_texture3D();
+	std::unique_ptr<vkb::core::Image> _image_ptr;
 };
 
 std::unique_ptr<vkb::VulkanSample> create_volume_render();

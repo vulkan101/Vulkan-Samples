@@ -26,6 +26,7 @@
 #include "rendering/subpasses/lighting_subpass.h"
 #include "rendering/subpasses/volume_raydir_subpass.h"
 #include "stats/stats.h"
+#include <iostream>
 
 volume_render::volume_render()
 {
@@ -40,7 +41,7 @@ bool volume_render::prepare(vkb::Platform &platform)
 
 	// Load a scene from the assets folder
 	load_scene("scenes/cube.gltf");
-
+	create_texture3D();
 	// Attach a move script to the camera component in the scene
 	auto &camera_node = vkb::add_free_camera(*scene, "main_camera", get_render_context().get_surface_extent());
 	_camera       = &camera_node.get_component<vkb::sg::Camera>();
@@ -191,4 +192,50 @@ void volume_render::draw_pipeline(vkb::CommandBuffer &command_buffer, vkb::Rende
 void volume_render::draw_renderpass(vkb::CommandBuffer &command_buffer, vkb::RenderTarget &render_target)
 {
 	draw_pipeline(command_buffer, render_target, *render_pipeline, gui.get());
+}
+
+void volume_render::create_texture3D()
+{
+	// create the data 
+	uint32_t const r = 8;
+	uint32_t const w = r;
+	uint32_t const h = r;
+	uint32_t const d = r;
+	std::vector<uint8_t> data;
+	data.reserve(w * h * d);
+	
+	float v = 0.0f;
+	for (int z = 0; z < d; z++)
+	{
+		for (int y = 0; y < h; y++)
+		{
+			for (int x = 0; x < w; x++)
+			{				
+				if (z == d / 2 || x == d/2 || y == d/2)
+					v = 1.0f;
+				else
+					 v = 0.01f;				
+				data.push_back(static_cast<uint8_t>(floor(v * 255)));
+			}
+		}
+	}
+	auto &device = get_render_context().get_device();
+	VkExtent3D extent = {w, h, d};
+
+	// G-Buffer should fit 128-bit budget for buffer color storage
+	// in order to enable subpasses merging by the driver
+	// Light (swapchain_image) RGBA8_UNORM   (32-bit)
+	// Albedo                  RGBA8_UNORM   (32-bit)
+	// Normal                  RGB10A2_UNORM (32-bit)
+
+	
+	_image_ptr = std::make_unique<vkb::core::Image>(device,
+	                                 extent,
+	                                 volume_data_format,
+	                                 VK_IMAGE_USAGE_SAMPLED_BIT | rt_usage_flags,
+	                                 VMA_MEMORY_USAGE_GPU_ONLY);
+	auto mem = _image_ptr->map();
+	memcpy(mem, &data[0], data.size() * sizeof(uint8_t));
+	_image_ptr->unmap();
+	
 }
