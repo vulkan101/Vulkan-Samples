@@ -26,8 +26,11 @@ layout (location = 0) in vec4 in_pos;
 layout (location = 1) in vec2 in_uv;
 layout (location = 2) in vec3 in_normal;
 
-layout (location = 2) out vec4 o_back_pos;
-layout (location = 3) out vec4 o_normal;
+layout (location = 0) out vec4 o_col; // swapchaint
+layout (location = 1) out vec4 o_depth;
+// 2 is albedo
+layout (location = 3) out vec4 o_back_pos;
+layout (location = 4) out vec4 o_normal;
 
 layout(set = 0, binding = 1) uniform GlobalUniform {
     mat4 model;
@@ -41,5 +44,6 @@ void main(void)
     // Transform normals from [-1, 1] to [0, 1]
     o_normal = in_pos;//vec4(0.5 * normal + 0.5, 1.0);
     o_back_pos = in_pos;
-    
+    o_col = o_back_pos;
+    o_depth = in_pos;
 }

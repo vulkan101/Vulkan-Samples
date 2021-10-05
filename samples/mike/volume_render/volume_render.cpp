@@ -134,26 +134,25 @@ std::unique_ptr<vkb::RenderPipeline> volume_render::create_renderpass()
 	// draw front faces 
 	auto front_vs      = vkb::ShaderSource{"volume/geometry.vert"};
 	auto front_fs      = vkb::ShaderSource{"volume/raydir_front.frag"};
-	auto front_subpass = std::make_unique<vkb::RayDirSubpass>(get_render_context(), std::move(back_vs), std::move(back_fs), *scene, *_camera, vkb::FaceDirection::Front);	
+	auto front_subpass = std::make_unique<vkb::RayDirSubpass>(get_render_context(), std::move(front_vs), std::move(front_fs), *scene, *_camera, vkb::FaceDirection::Front);	
 	front_subpass->set_input_attachments({3});
-	front_subpass->set_output_attachments({1, 2, 3, 4});
+	front_subpass->set_output_attachments({0, 1, 2, 3, 4});
 	
-	
-	
-
+		
 	// Lighting subpass
-	auto lighting_vs      = vkb::ShaderSource{"deferred/lighting.vert"};
-	auto lighting_fs      = vkb::ShaderSource{"deferred/lighting.frag"};
-	auto lighting_subpass = std::make_unique<vkb::LightingSubpass>(get_render_context(), std::move(lighting_vs), std::move(lighting_fs), *_camera, *scene);
+	//auto lighting_vs      = vkb::ShaderSource{"volume/lighting.vert"};
+	//auto lighting_fs      = vkb::ShaderSource{"volume/lighting.frag"};
+	//auto lighting_subpass = std::make_unique<vkb::LightingSubpass>(get_render_context(), std::move(lighting_vs), std::move(lighting_fs), *_camera, *scene);
 
-	// Inputs are depth, albedo, and normal from the geometry subpass
-	lighting_subpass->set_input_attachments({1, 2, 3, 4});
+	//// Inputs are depth, albedo, and normal from the geometry subpass
+	//lighting_subpass->set_input_attachments({0, 1, 2, 3, 4});
 
 	// Create subpasses pipeline
 	std::vector<std::unique_ptr<vkb::Subpass>> subpasses{};
 	subpasses.push_back(std::move(back_subpass));
 	subpasses.push_back(std::move(front_subpass));
-	
+	//subpasses.push_back(std::move(lighting_subpass));
+
 	auto pipeline = std::make_unique<vkb::RenderPipeline>(std::move(subpasses));
 
 	pipeline->set_load_store(vkb::gbuffer::get_clear_all_store_swapchain());
