@@ -84,7 +84,7 @@ class Device
 	/**
 	 * @return Whether an image format is supported by the GPU
 	 */
-	bool is_image_format_supported(VkFormat format) const;
+	bool is_image_format_supported(VkFormat format, VkImageType type = VK_IMAGE_TYPE_2D) const;
 
 	const Queue &get_queue(uint32_t queue_family_index, uint32_t queue_index);
 

@@ -318,13 +318,13 @@ DriverVersion Device::get_driver_version() const
 	return version;
 }
 
-bool Device::is_image_format_supported(VkFormat format) const
+bool Device::is_image_format_supported(VkFormat format, VkImageType type) const
 {
 	VkImageFormatProperties format_properties;
 
 	auto result = vkGetPhysicalDeviceImageFormatProperties(gpu.get_handle(),
 	                                                       format,
-	                                                       VK_IMAGE_TYPE_2D,
+	                                                       type,
 	                                                       VK_IMAGE_TILING_OPTIMAL,
 	                                                       VK_IMAGE_USAGE_SAMPLED_BIT,
 	                                                       0,        // no create flags

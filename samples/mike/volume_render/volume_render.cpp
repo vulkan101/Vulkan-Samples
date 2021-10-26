@@ -27,6 +27,10 @@
 #include "rendering/subpasses/volume_raydir_subpass.h"
 #include "stats/stats.h"
 #include <iostream>
+#include "scene_graph/components/texture.h"
+#include "scene_graph/components/image.h"
+
+using namespace vkb;
 
 volume_render::volume_render()
 {
@@ -228,14 +232,33 @@ void volume_render::create_texture3D()
 	// Albedo                  RGBA8_UNORM   (32-bit)
 	// Normal                  RGB10A2_UNORM (32-bit)
 
+	std::unique_ptr<sg::Texture> tex3d = std::make_unique<sg::Texture>(std::string("MyTex3D"));
+	// sgimage is high level
+	std::unique_ptr<sg::Image> image{nullptr};
+
+	auto mipmap = sg::Mipmap{
+		    /* .level = */ 0,
+		    /* .offset = */ 0,
+		    /* .extent = */ {/* .width = */ static_cast<uint32_t>(w),
+		                     /* .height = */ static_cast<uint32_t>(d),
+		                     /* .depth = */ static_cast<uint32_t>(h)}};
+		std::vector<sg::Mipmap> mipmaps{mipmap};
+	image = std::make_unique<sg::Image>("My3DImage", std::move(data), std::move(mipmaps));
+
+	if (sg::is_astc(image->get_format()))
+	{
+		if (!device.is_image_format_supported(image->get_format(), VK_IMAGE_TYPE_3D))
+		{
+			LOGW("Image format not supported: {}", image->get_name());			
+		}
+	}
+	// set up a sampler - see GLTFLoader::parse_sampler
+	// create core::Image
+	image->create_vk_image(device, VK_IMAGE_VIEW_TYPE_3D);
+
 	
-	_image_ptr = std::make_unique<vkb::core::Image>(device,
-	                                 extent,
-	                                 volume_data_format,
-	                                 VK_IMAGE_USAGE_SAMPLED_BIT | rt_usage_flags,
-	                                 VMA_MEMORY_USAGE_GPU_ONLY);
-	auto mem = _image_ptr->map();
-	memcpy(mem, &data[0], data.size() * sizeof(uint8_t));
-	_image_ptr->unmap();
-	
+	tex3d->set_image(*image.get());
+
+	scene->add_component(std::move(image));
+	scene->add_component(std::move(tex3d));					
 }
