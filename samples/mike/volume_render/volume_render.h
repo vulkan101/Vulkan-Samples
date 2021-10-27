@@ -20,6 +20,7 @@
 #include "rendering/render_pipeline.h"
 #include "scene_graph/components/camera.h"
 #include "vulkan_sample.h"
+#include "scene_graph/components/sampler.h"
 
 class volume_render : public vkb::VulkanSample
 {
@@ -42,7 +43,8 @@ class volume_render : public vkb::VulkanSample
 	VkFormat          direction_format{VK_FORMAT_R32G32B32A32_SFLOAT};
 	VkFormat          volume_data_format{VK_FORMAT_R8_UNORM};
 	VkImageUsageFlags rt_usage_flags{VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT};
-	void              create_texture3D();
+	std::unique_ptr<vkb::sg::Sampler> create_sampler3D(const std::string &name);
+	void                         create_texture3D();
 		
 };
 

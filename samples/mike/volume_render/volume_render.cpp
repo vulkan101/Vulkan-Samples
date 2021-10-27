@@ -198,6 +198,35 @@ void volume_render::draw_renderpass(vkb::CommandBuffer &command_buffer, vkb::Ren
 	draw_pipeline(command_buffer, render_target, *render_pipeline, gui.get());
 }
 
+std::unique_ptr<sg::Sampler> volume_render::create_sampler3D(const std::string& name)
+{
+	auto &   device     = get_render_context().get_device();
+
+	VkFilter min_filter = VK_FILTER_LINEAR;	
+	VkFilter mag_filter = VK_FILTER_LINEAR;
+
+	VkSamplerMipmapMode mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+	VkSamplerAddressMode address_mode_u = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;	
+	VkSamplerAddressMode address_mode_v = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;	
+	VkSamplerAddressMode address_mode_w = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;	
+
+	VkSamplerCreateInfo sampler_info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+
+	sampler_info.magFilter    = mag_filter;
+	sampler_info.minFilter    = min_filter;
+	sampler_info.mipmapMode   = mipmap_mode;
+	sampler_info.addressModeU = address_mode_u;
+	sampler_info.addressModeV = address_mode_v;
+	sampler_info.addressModeW = address_mode_w;
+	sampler_info.borderColor  = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+	sampler_info.maxLod       = std::numeric_limits<float>::max();
+
+	core::Sampler vk_sampler{device, sampler_info};
+
+	return std::make_unique<sg::Sampler>(name, std::move(vk_sampler));
+}
+
 void volume_render::create_texture3D()
 {
 	// create the data 
@@ -235,7 +264,7 @@ void volume_render::create_texture3D()
 	std::unique_ptr<sg::Texture> tex3d = std::make_unique<sg::Texture>(std::string("MyTex3D"));
 	// sgimage is high level
 	std::unique_ptr<sg::Image> image{nullptr};
-
+	std::unique_ptr<sg::Sampler> sampler3d = this->create_sampler3D("MySampled3D");
 	auto mipmap = sg::Mipmap{
 		    /* .level = */ 0,
 		    /* .offset = */ 0,
@@ -258,7 +287,9 @@ void volume_render::create_texture3D()
 
 	
 	tex3d->set_image(*image.get());
+	tex3d->set_sampler(*sampler3d.get());
 
 	scene->add_component(std::move(image));
+	scene->add_component(std::move(sampler3d));
 	scene->add_component(std::move(tex3d));					
 }
