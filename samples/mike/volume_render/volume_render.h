@@ -45,7 +45,8 @@ class volume_render : public vkb::VulkanSample
 	VkImageUsageFlags rt_usage_flags{VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT};
 	std::unique_ptr<vkb::sg::Sampler> create_sampler3D(const std::string &name);
 	void                         create_texture3D();
-		
+	void upload_images();
+	void upload_textures();
 };
 
 std::unique_ptr<vkb::VulkanSample> create_volume_render();

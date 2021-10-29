@@ -46,6 +46,7 @@ bool volume_render::prepare(vkb::Platform &platform)
 	// Load a scene from the assets folder
 	load_scene("scenes/cube.gltf");
 	create_texture3D();
+	upload_images();
 	// Attach a move script to the camera component in the scene
 	auto &camera_node = vkb::add_free_camera(*scene, "main_camera", get_render_context().get_surface_extent());
 	_camera       = &camera_node.get_component<vkb::sg::Camera>();
@@ -230,7 +231,7 @@ std::unique_ptr<sg::Sampler> volume_render::create_sampler3D(const std::string& 
 void volume_render::create_texture3D()
 {
 	// create the data 
-	uint32_t const r = 8;
+	uint32_t const r = 64;
 	uint32_t const w = r;
 	uint32_t const h = r;
 	uint32_t const d = r;
@@ -284,12 +285,100 @@ void volume_render::create_texture3D()
 	// set up a sampler - see GLTFLoader::parse_sampler
 	// create core::Image
 	image->create_vk_image(device, VK_IMAGE_VIEW_TYPE_3D);
-
-	
-	tex3d->set_image(*image.get());
-	tex3d->set_sampler(*sampler3d.get());
+	tex3d->set_image(*image);
+	tex3d->set_sampler(*sampler3d);
 
 	scene->add_component(std::move(image));
 	scene->add_component(std::move(sampler3d));
 	scene->add_component(std::move(tex3d));					
 }
+
+inline void upload_image_to_gpu(CommandBuffer &command_buffer, core::Buffer &staging_buffer, sg::Image &image)
+{
+	// Clean up the image data, as they are copied in the staging buffer
+	image.clear_data();
+
+	{
+		ImageMemoryBarrier memory_barrier{};
+		memory_barrier.old_layout      = VK_IMAGE_LAYOUT_UNDEFINED;
+		memory_barrier.new_layout      = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		memory_barrier.src_access_mask = 0;
+		memory_barrier.dst_access_mask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		memory_barrier.src_stage_mask  = VK_PIPELINE_STAGE_HOST_BIT;
+		memory_barrier.dst_stage_mask  = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+		command_buffer.image_memory_barrier(image.get_vk_image_view(), memory_barrier);
+	}
+
+	// Create a buffer image copy for every mip level
+	auto &mipmaps = image.get_mipmaps();
+
+	std::vector<VkBufferImageCopy> buffer_copy_regions(mipmaps.size());
+
+	for (size_t i = 0; i < mipmaps.size(); ++i)
+	{
+		auto &mipmap      = mipmaps[i];
+		auto &copy_region = buffer_copy_regions[i];
+
+		copy_region.bufferOffset     = mipmap.offset;
+		copy_region.imageSubresource = image.get_vk_image_view().get_subresource_layers();
+		// Update miplevel
+		copy_region.imageSubresource.mipLevel = mipmap.level;
+		copy_region.imageExtent               = mipmap.extent;
+	}
+
+	command_buffer.copy_buffer_to_image(staging_buffer, image.get_vk_image(), buffer_copy_regions);
+
+	{
+		ImageMemoryBarrier memory_barrier{};
+		memory_barrier.old_layout      = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		memory_barrier.new_layout      = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		memory_barrier.src_access_mask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		memory_barrier.dst_access_mask = VK_ACCESS_SHADER_READ_BIT;
+		memory_barrier.src_stage_mask  = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		memory_barrier.dst_stage_mask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+		command_buffer.image_memory_barrier(image.get_vk_image_view(), memory_barrier);
+	}
+}
+
+void volume_render::upload_images()
+{
+	auto &device           = get_render_context().get_device();
+	auto image_components = scene->get_components<sg::Image>();
+	auto &command_buffer   = device.request_command_buffer();
+	std::vector<core::Buffer> transient_buffers;
+
+	command_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, 0);
+	auto image_count = image_components.size();
+	for (size_t image_index = 0; image_index < image_count; image_index++)
+	{
+		auto &image = image_components.at(image_index);
+
+		core::Buffer stage_buffer{device,
+		                          image->get_data().size(),
+		                          VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		                          VMA_MEMORY_USAGE_CPU_ONLY};
+
+		stage_buffer.update(image->get_data());
+
+		upload_image_to_gpu(command_buffer, stage_buffer, *image);
+
+		transient_buffers.push_back(std::move(stage_buffer));
+	}
+
+	command_buffer.end();
+
+	auto &queue = device.get_queue_by_flags(VK_QUEUE_GRAPHICS_BIT, 0);
+
+	queue.submit(command_buffer, device.request_fence());
+
+	device.get_fence_pool().wait();
+	device.get_fence_pool().reset();
+	device.get_command_pool().reset_pool();
+	device.wait_idle();
+
+	transient_buffers.clear();
+}
+
+
